@@ -5,6 +5,7 @@
 #include <boost/asio/strand.hpp>
 #include <filesystem>
 #include <variant>
+#include <optional>
 
 namespace http_handler {
 
@@ -18,12 +19,10 @@ public:
     using Strand = net::strand<net::io_context::executor_type>;
 
     RequestHandler(fs::path www_root, Strand api_strand, app::Application& app)
-        : www_root_(std::move(www_root))
-        , api_strand_(api_strand)
-        , app_(app) {}
+        : www_root_(std::move(www_root)), api_strand_(api_strand), app_(app) {}
 
     template <typename Body, typename Allocator, typename Send>
-    void operator()(net::ip::tcp::endpoint ep, http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+    void operator()(net::ip::tcp::endpoint, http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
         std::string target(req.target());
 
         if (target.starts_with("/api/")) {
@@ -41,6 +40,18 @@ private:
 
     FileRequestResult HandleStaticRequest(const http::request<http::string_body>& req) const;
     http::response<http::string_body> HandleApiRequest(const http::request<http::string_body>& req) const;
+
+    std::string DecodeUrl(const std::string& url) const;
+    bool IsSubPath(fs::path path, fs::path base) const;
+    std::string GetMimeType(const std::string& extension) const;
+
+    http::response<http::string_body> MakeErrorResponse(http::status status, std::string_view code, std::string_view message, unsigned version, bool keep_alive) const;
+    http::response<http::string_body> MakeJsonResponse(http::status status, const boost::json::value& body, unsigned version, bool keep_alive) const;
+    
+    boost::json::array SerializeMaps() const;
+    boost::json::object SerializeMap(const model::Map& map) const;
+
+    std::optional<std::string> TryExtractToken(const http::request<http::string_body>& req) const;
 
     fs::path www_root_;
     Strand api_strand_;

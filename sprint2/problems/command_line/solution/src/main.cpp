@@ -1,5 +1,6 @@
 #include "http_server.h"
 #include "request_handler.h"
+#include "logging_handler.h"
 #include "json_loader.h"
 #include "ticker.h"
 #include <boost/asio/io_context.hpp>
@@ -18,7 +19,9 @@ namespace po = boost::program_options;
 namespace logging = boost::log;
 namespace json = boost::json;
 
-BOOST_LOG_ATTRIBUTE_KEYWORD(additional_data, "AdditionalData", json::value)
+namespace server_logging {
+    boost::log::attributes::keyword<boost::json::value> additional_data("AdditionalData");
+}
 BOOST_LOG_ATTRIBUTE_KEYWORD(timestamp, "TimeStamp", boost::posix_time::ptime)
 
 struct Args {
@@ -58,7 +61,7 @@ struct Args {
 void JsonFormatter(logging::record_view const& rec, logging::formatting_ostream& strm) {
     json::object log_obj;
     log_obj["timestamp"] = boost::posix_time::to_iso_extended_string(*rec[timestamp]);
-    if (rec.count(additional_data)) log_obj["data"] = rec[additional_data].get();
+    if (rec.count(server_logging::additional_data)) log_obj["data"] = rec[server_logging::additional_data].get();
     else log_obj["data"] = json::object();
     log_obj["message"] = *rec[logging::expressions::smessage];
     strm << json::serialize(log_obj);
@@ -72,13 +75,9 @@ void InitLogger() {
 void RunWorkers(unsigned num_threads, const std::function<void()>& fn) {
     num_threads = std::max(1u, num_threads);
     std::vector<std::thread> workers;
-    for (unsigned i = 0; i < num_threads - 1; ++i) {
-        workers.emplace_back(fn);
-    }
+    for (unsigned i = 0; i < num_threads - 1; ++i) workers.emplace_back(fn);
     fn();
-    for (auto& t : workers) {
-        t.join();
-    }
+    for (auto& t : workers) t.join();
 }
 
 int main(int argc, const char* argv[]) {
@@ -96,7 +95,12 @@ int main(int argc, const char* argv[]) {
         auto api_strand = net::make_strand(ioc);
         auto handler = std::make_shared<http_handler::RequestHandler>(args->www_root, api_strand, app);
 
-        // Инициализируем Ticker, если передан параметр -t
+        server_logging::LoggingRequestHandler logging_handler{
+            [handler](auto&& endpoint, auto&& req, auto&& send) {
+                (*handler)(std::forward<decltype(endpoint)>(endpoint), std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
+            }
+        };
+
         std::shared_ptr<time_control::Ticker> ticker;
         if (args->tick_period) {
             ticker = std::make_shared<time_control::Ticker>(api_strand, std::chrono::milliseconds(*args->tick_period),
@@ -106,28 +110,24 @@ int main(int argc, const char* argv[]) {
         }
 
         net::signal_set signals(ioc, SIGINT, SIGTERM);
-        signals.async_wait([&ioc](const boost::system::error_code&, int) {
-            ioc.stop();
-        });
+        signals.async_wait([&ioc](const boost::system::error_code&, int) { ioc.stop(); });
 
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
         
-        http_server::ServeHttp(ioc, {address, port}, [handler](auto&& endpoint, auto&& req, auto&& send) {
-            (*handler)(std::forward<decltype(endpoint)>(endpoint), std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
-        });
+        http_server::ServeHttp(ioc, {address, port}, logging_handler);
 
         json::value start_data{{"port", port}, {"address", address.to_string()}};
-        BOOST_LOG_TRIVIAL(info) << logging::add_value(additional_data, start_data) << "server started"sv;
+        BOOST_LOG_TRIVIAL(info) << logging::add_value(server_logging::additional_data, start_data) << "server started"sv;
 
         RunWorkers(num_threads, [&ioc] { ioc.run(); });
 
         json::value exit_data{{"code", 0}};
-        BOOST_LOG_TRIVIAL(info) << logging::add_value(additional_data, exit_data) << "server exited"sv;
+        BOOST_LOG_TRIVIAL(info) << logging::add_value(server_logging::additional_data, exit_data) << "server exited"sv;
         return 0;
     } catch (const std::exception& e) {
         json::value error_data{{"code", EXIT_FAILURE}, {"exception", e.what()}};
-        BOOST_LOG_TRIVIAL(fatal) << logging::add_value(additional_data, error_data) << "server exited"sv;
+        BOOST_LOG_TRIVIAL(fatal) << logging::add_value(server_logging::additional_data, error_data) << "server exited"sv;
         return EXIT_FAILURE;
     }
 }

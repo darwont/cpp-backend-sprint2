@@ -16,14 +16,10 @@ public:
 
     std::shared_ptr<Player> AddPlayer(const std::string& player_name) {
         auto dog = std::make_shared<Dog>(dog_id_counter_++, player_name);
-        
-        // По умолчанию ставим собаку в начало первой дороги (для тестов)
         if (!map_->GetRoads().empty()) {
             const auto& first_road = map_->GetRoads().front();
-            dog->SetPosition({static_cast<double>(first_road.GetStart().x), 
-                              static_cast<double>(first_road.GetStart().y)});
+            dog->SetPosition({static_cast<double>(first_road.GetStart().x), static_cast<double>(first_road.GetStart().y)});
         }
-        
         auto player = std::make_shared<Player>(dog);
         players_.push_back(player);
         return player;
@@ -37,11 +33,8 @@ public:
             auto dog = player->GetDog();
             auto pos = dog->GetPosition();
             auto speed = dog->GetSpeed();
-            
-            // Базовое смещение (в реальном проекте тут проверяются границы дорог)
             pos.x += speed.ux * delta_sec;
             pos.y += speed.uy * delta_sec;
-            
             dog->SetPosition(pos);
         }
     }
@@ -56,16 +49,15 @@ class Application {
 public:
     Application(model::Game game) : game_(std::move(game)) {}
 
+    const model::Game& GetGame() const { return game_; }
+
     std::pair<std::string, uint64_t> JoinGame(const std::string& map_id, const std::string& player_name) {
         auto map = game_.FindMap(map_id);
         if (!map) throw std::invalid_argument("Map not found");
-
         auto session = FindOrCreateSession(map_id);
         auto player = session->AddPlayer(player_name);
-        
         std::string token = player_tokens_.GenerateToken();
         player_tokens_.AddToken(token, player);
-
         return {token, player->GetId()};
     }
 
@@ -76,21 +68,16 @@ public:
     const std::vector<std::shared_ptr<Player>>& GetPlayersInSession(const std::string& token) const {
         auto player = GetPlayerByToken(token);
         if (!player) throw std::invalid_argument("Invalid token");
-
         for (const auto& session : sessions_) {
             for (const auto& p : session->GetPlayers()) {
-                if (p->GetId() == player->GetId()) {
-                    return session->GetPlayers();
-                }
+                if (p->GetId() == player->GetId()) return session->GetPlayers();
             }
         }
         throw std::runtime_error("Session not found");
     }
 
     void Tick(std::chrono::milliseconds delta) {
-        for (auto& session : sessions_) {
-            session->Tick(delta);
-        }
+        for (auto& session : sessions_) session->Tick(delta);
     }
 
 private:
