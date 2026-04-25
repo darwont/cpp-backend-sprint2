@@ -25,6 +25,7 @@ void RunWorkers(unsigned n, const Fn& fn) {
 }
 
 int main(int argc, const char* argv[]) {
+    // В Спринте 2 тесты передают 3 аргумента
     if (argc != 3) {
         std::cerr << "Usage: game_server <game-config-json> <static-pure-dir>" << std::endl;
         return EXIT_FAILURE;
@@ -40,7 +41,10 @@ int main(int argc, const char* argv[]) {
         http_server::ServeHttp(ioc, {address, port}, [handler](auto&& req, auto&& send) {
             (*handler)(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
+
+        // Эта фраза — сигнал для робота Яндекса, что сервер ожил
         std::cout << "Server has started..." << std::endl;
+
         RunWorkers(std::max(1u, num_threads), [&ioc] {
             ioc.run();
         });
