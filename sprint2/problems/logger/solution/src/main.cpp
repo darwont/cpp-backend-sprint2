@@ -23,6 +23,7 @@ void RunWorkers(unsigned n, const Fn& fn) {
 }
 
 int main(int argc, const char* argv[]) {
+    // В Спринте 2 ожидается минимум 3 аргумента
     if (argc < 3) {
         std::cerr << "Usage: game_server <game-config-json> <static-pure-dir>" << std::endl;
         return EXIT_FAILURE;
@@ -35,10 +36,15 @@ int main(int argc, const char* argv[]) {
         auto handler = std::make_shared<http_handler::RequestHandler>(game, static_path);
         const auto address = net::ip::make_address("0.0.0.0");
         const unsigned short port = 8080;
+        
+        // Вызываем исправленную функцию сервера
         http_server::ServeHttp(ioc, {address, port}, [handler](auto&& req, auto&& send) {
             (*handler)(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
+
+        // КРИТИЧЕСКИ ВАЖНО: Фраза для автотестов
         std::cout << "Server has started..." << std::endl;
+
         RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
     } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
