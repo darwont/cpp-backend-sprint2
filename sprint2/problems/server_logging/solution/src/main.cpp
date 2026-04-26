@@ -1,4 +1,4 @@
-#include "sdk.h"
+#include <sdk.h>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <iostream>
@@ -23,29 +23,23 @@ void RunWorkers(unsigned n, const Fn& fn) {
 }
 
 int main(int argc, const char* argv[]) {
-    // В Спринте 2 ожидается минимум 3 аргумента
     if (argc < 3) {
-        std::cerr << "Usage: game_server <game-config-json> <static-pure-dir>" << std::endl;
+        std::cerr << "Usage: game_server <config> <static>" << std::endl;
         return EXIT_FAILURE;
     }
     try {
         model::Game game = json_loader::LoadGame(argv[1]);
         std::filesystem::path static_path{argv[2]};
-        const unsigned num_threads = std::thread::hardware_concurrency();
-        net::io_context ioc(num_threads);
+        const unsigned n_threads = std::thread::hardware_concurrency();
+        net::io_context ioc(n_threads);
         auto handler = std::make_shared<http_handler::RequestHandler>(game, static_path);
         const auto address = net::ip::make_address("0.0.0.0");
         const unsigned short port = 8080;
-        
-        // Вызываем исправленную функцию сервера
         http_server::ServeHttp(ioc, {address, port}, [handler](auto&& req, auto&& send) {
             (*handler)(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
-
-        // КРИТИЧЕСКИ ВАЖНО: Фраза для автотестов
         std::cout << "Server has started..." << std::endl;
-
-        RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
+        RunWorkers(std::max(1u, n_threads), [&ioc] { ioc.run(); });
     } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
         return EXIT_FAILURE;
