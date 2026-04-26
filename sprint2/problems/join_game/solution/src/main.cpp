@@ -1,10 +1,12 @@
-#include "sdk.h"
+#include <sdk.h>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <iostream>
 #include <thread>
 #include <filesystem>
 #include "json_loader.h"
 #include "request_handler.h"
+#include "http_server.h"
 
 namespace net = boost::asio;
 
@@ -21,7 +23,7 @@ void RunWorkers(unsigned n, const Fn& fn) {
 }
 
 int main(int argc, const char* argv[]) {
-    if (argc != 3) {
+    if (argc < 3) {
         std::cerr << "Usage: game_server <game-config-json> <static-pure-dir>" << std::endl;
         return EXIT_FAILURE;
     }
@@ -36,7 +38,9 @@ int main(int argc, const char* argv[]) {
         http_server::ServeHttp(ioc, {address, port}, [handler](auto&& req, auto&& send) {
             (*handler)(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
+
         std::cout << "Server has started..." << std::endl;
+
         RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
     } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
