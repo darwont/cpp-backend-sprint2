@@ -25,7 +25,7 @@ void RunWorkers(unsigned n, const Fn& fn) {
 }
 
 int main(int argc, const char* argv[]) {
-    // В Спринте 2 тесты передают 3 аргумента: exe, config, static_dir
+    // В Спринте 2 ожидается 3 аргумента: exe, config, static_dir
     if (argc != 3) {
         std::cerr << "Usage: game_server <game-config-json> <static-pure-dir>" << std::endl;
         return EXIT_FAILURE;
