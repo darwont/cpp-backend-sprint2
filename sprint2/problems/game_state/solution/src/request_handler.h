@@ -1,27 +1,27 @@
 #pragma once
-#include "http_server.h"
+#include "sdk.h"
 #include "model.h"
+#include <filesystem>
 
 namespace http_handler {
-namespace beast = boost::beast;
-namespace http = beast::http;
+namespace net = boost::asio;
+namespace fs = std::filesystem;
 
 class RequestHandler {
 public:
-    explicit RequestHandler(model::Game& game)
-        : game_{game} {
-    }
+    explicit RequestHandler(model::Game& game, fs::path static_path)
+        : game_{game}, static_path_{std::move(static_path)} {}
 
     RequestHandler(const RequestHandler&) = delete;
     RequestHandler& operator=(const RequestHandler&) = delete;
 
     template <typename Body, typename Allocator, typename Send>
-    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        // Обработать запрос request и отправить ответ, используя send
+    void operator()(const boost::beast::http::request<Body, boost::beast::http::basic_fields<Allocator>>& req, Send&& send) {
+        // Логика обработки будет тут
     }
 
 private:
     model::Game& game_;
+    fs::path static_path_;
 };
-
 }  // namespace http_handler
