@@ -38,9 +38,7 @@ int main(int argc, const char* argv[]) {
         http_server::ServeHttp(ioc, {address, port}, [handler](auto&& req, auto&& send) {
             (*handler)(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
-
         std::cout << "Server has started..." << std::endl;
-
         RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
     } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
