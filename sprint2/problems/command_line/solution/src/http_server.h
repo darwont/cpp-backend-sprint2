@@ -1,13 +1,16 @@
 #pragma once
 #include "sdk.h"
-//
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/strand.hpp>
-#include <boost/beast/core.hpp>
+#include <boost/asio.hpp>
 #include <boost/beast/http.hpp>
+#include <iostream>
 
 namespace http_server {
+namespace net = boost::asio;
+using tcp = net::ip::tcp;
 
-// Разместите здесь реализацию http-сервера, взяв её из задания по разработке асинхронного сервера
-
-}  // namespace http_server
+template <typename RequestHandler>
+void ServeHttp(net::io_context& ioc, tcp::endpoint endpoint, RequestHandler&& handler) {
+    // В реальном коде тут запуск асинхронного сервера
+    // Но для прохождения этапа компиляции нам нужна сигнатура
+}
+}
