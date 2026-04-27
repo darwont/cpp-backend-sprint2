@@ -67,7 +67,7 @@ protected:
     virtual void HandleRequest(http::request<http::string_body>&& request) = 0;
     virtual std::shared_ptr<SessionBase> GetSharedThis() = 0;
 
-private:
+public:
     beast::tcp_stream stream_;
     beast::flat_buffer buffer_;
     http::request<http::string_body> request_;
@@ -90,7 +90,7 @@ public:
         });
     }
 
-private:
+public:
     RequestHandler request_handler_;
 };
 
@@ -134,7 +134,7 @@ public:
         std::make_shared<Session<RequestHandler>>(std::move(socket), request_handler_)->Run();
     }
 
-private:
+public:
     net::io_context& ioc_;
     tcp::acceptor acceptor_;
     RequestHandler request_handler_;
