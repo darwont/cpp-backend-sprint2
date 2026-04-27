@@ -102,13 +102,13 @@ public:
         : ioc_(ioc), acceptor_(net::make_strand(ioc)), request_handler_(std::forward<Handler>(request_handler)) {
         beast::error_code ec;
         acceptor_.open(endpoint.protocol(), ec);
-        if (ec) return ReportError(ec, "open");
+        if (ec) { ReportError(ec, "open"); return; }
         acceptor_.set_option(net::socket_base::reuse_address(true), ec);
-        if (ec) return ReportError(ec, "set_option");
+        if (ec) { ReportError(ec, "set_option"); return; }
         acceptor_.bind(endpoint, ec);
-        if (ec) return ReportError(ec, "bind");
+        if (ec) { ReportError(ec, "bind"); return; }
         acceptor_.listen(net::socket_base::max_listen_connections, ec);
-        if (ec) return ReportError(ec, "listen");
+        if (ec) { ReportError(ec, "listen"); return; }
     }
 
     void Run() {
