@@ -1,7 +1,6 @@
 #pragma once
 #include "sdk.h"
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/strand.hpp>
+#include <boost/asio.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <iostream>
@@ -27,9 +26,29 @@ public:
         net::dispatch(stream_.get_executor(), beast::bind_front_handler(&SessionBase::Read, GetSharedThis()));
     }
 
-protected:
-    explicit SessionBase(tcp::socket&& socket) : stream_(std::move(socket)) {}
-    ~SessionBase() = default;
+    // ТЕПЕРЬ ОНИ PUBLIC: Boost Asio может свободно их вызывать!
+    void Read() {
+        request_ = {};
+        stream_.expires_after(std::chrono::seconds(30));
+        http::async_read(stream_, buffer_, request_, beast::bind_front_handler(&SessionBase::OnRead, GetSharedThis()));
+    }
+
+    void OnRead(beast::error_code ec, std::size_t bytes_read) {
+        if (ec == http::error::end_of_stream) return Close();
+        if (ec) { ReportError(ec, "read"); return; }
+        HandleRequest(std::move(request_));
+    }
+
+    void OnWrite(bool close, beast::error_code ec, std::size_t bytes_written) {
+        if (ec) { ReportError(ec, "write"); return; }
+        if (close) return Close();
+        Read();
+    }
+
+    void Close() {
+        beast::error_code ec;
+        stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+    }
 
     template <bool isRequest, class Body, class Fields>
     void Write(http::message<isRequest, Body, Fields>&& response) {
@@ -41,33 +60,14 @@ protected:
                           });
     }
 
-private:
-    void Read() {
-        request_ = {};
-        stream_.expires_after(std::chrono::seconds(30));
-        http::async_read(stream_, buffer_, request_, beast::bind_front_handler(&SessionBase::OnRead, GetSharedThis()));
-    }
-
-    void OnRead(beast::error_code ec, std::size_t bytes_read) {
-        if (ec == http::error::end_of_stream) return Close();
-        if (ec) return ReportError(ec, "read");
-        HandleRequest(std::move(request_));
-    }
-
-    void OnWrite(bool close, beast::error_code ec, std::size_t bytes_written) {
-        if (ec) return ReportError(ec, "write");
-        if (close) return Close();
-        Read();
-    }
-
-    void Close() {
-        beast::error_code ec;
-        stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
-    }
+protected:
+    explicit SessionBase(tcp::socket&& socket) : stream_(std::move(socket)) {}
+    ~SessionBase() = default;
 
     virtual void HandleRequest(http::request<http::string_body>&& request) = 0;
     virtual std::shared_ptr<SessionBase> GetSharedThis() = 0;
 
+private:
     beast::tcp_stream stream_;
     beast::flat_buffer buffer_;
     http::request<http::string_body> request_;
@@ -80,7 +80,6 @@ public:
     Session(tcp::socket&& socket, Handler&& request_handler)
         : SessionBase(std::move(socket)), request_handler_(std::forward<Handler>(request_handler)) {}
 
-private:
     std::shared_ptr<SessionBase> GetSharedThis() override {
         return this->shared_from_this();
     }
@@ -91,6 +90,7 @@ private:
         });
     }
 
+private:
     RequestHandler request_handler_;
 };
 
@@ -116,7 +116,6 @@ public:
         DoAccept();
     }
 
-private:
     void DoAccept() {
         acceptor_.async_accept(net::make_strand(ioc_),
                                beast::bind_front_handler(&Listener::OnAccept, this->shared_from_this()));
@@ -135,6 +134,7 @@ private:
         std::make_shared<Session<RequestHandler>>(std::move(socket), request_handler_)->Run();
     }
 
+private:
     net::io_context& ioc_;
     tcp::acceptor acceptor_;
     RequestHandler request_handler_;
