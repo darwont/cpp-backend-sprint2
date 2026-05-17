@@ -1,6 +1,7 @@
 #include "json_loader.h"
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <boost/json.hpp>
 
 namespace json = boost::json;
@@ -54,7 +55,13 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    auto value = json::parse(buffer.str());
+    
+    json::value value;
+    try {
+        value = json::parse(buffer.str());
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to parse JSON: " + std::string(e.what()));
+    }
     
     for (const auto& map_val : value.as_object().at("maps").as_array()) {
         const auto& map_obj = map_val.as_object();

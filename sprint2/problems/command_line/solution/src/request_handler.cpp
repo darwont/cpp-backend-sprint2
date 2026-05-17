@@ -64,7 +64,7 @@ json::array RequestHandler::SerializeMaps() const {
     return maps_arr;
 }
 
-json::object RequestHandler::SerializeMap(const model::Map& map) const {
+json::array RequestHandler::SerializeRoads(const model::Map& map) const {
     json::array roads_arr;
     for (const auto& r : map.GetRoads()) {
         if (r.IsHorizontal()) {
@@ -81,7 +81,10 @@ json::object RequestHandler::SerializeMap(const model::Map& map) const {
             });
         }
     }
-    
+    return roads_arr;
+}
+
+json::array RequestHandler::SerializeBuildings(const model::Map& map) const {
     json::array bldgs_arr;
     for (const auto& b : map.GetBuildings()) {
         bldgs_arr.push_back({
@@ -91,7 +94,10 @@ json::object RequestHandler::SerializeMap(const model::Map& map) const {
             {"h", b.GetBounds().size.height}
         });
     }
-    
+    return bldgs_arr;
+}
+
+json::array RequestHandler::SerializeOffices(const model::Map& map) const {
     json::array off_arr;
     for (const auto& o : map.GetOffices()) {
         off_arr.push_back({
@@ -102,13 +108,16 @@ json::object RequestHandler::SerializeMap(const model::Map& map) const {
             {"offsetY", o.GetOffset().dy}
         });
     }
+    return off_arr;
+}
 
+json::object RequestHandler::SerializeMap(const model::Map& map) const {
     return {
         {"id", map.GetId()},
         {"name", map.GetName()},
-        {"roads", roads_arr},
-        {"buildings", bldgs_arr},
-        {"offices", off_arr}
+        {"roads", SerializeRoads(map)},
+        {"buildings", SerializeBuildings(map)},
+        {"offices", SerializeOffices(map)}
     };
 }
 

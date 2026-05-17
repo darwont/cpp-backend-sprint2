@@ -19,7 +19,6 @@ struct Endpoints {
     static constexpr std::string_view API_PREFIX = "/api/";
 };
 
-// Два типа ответов: текстовый (для JSON/ошибок) и файловый (для статики)
 using StringResponse = http::response<http::string_body>;
 using FileResponse = http::response<http::file_body>;
 using ResponseVariant = std::variant<StringResponse, FileResponse>;
@@ -33,7 +32,6 @@ public:
 
     template <typename Body, typename Allocator, typename Send>
     void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        // Получаем вариант ответа и отправляем его через std::visit
         auto variant_response = HandleRequest(std::forward<decltype(req)>(req));
         std::visit([&send](auto&& result) {
             send(std::forward<decltype(result)>(result));
@@ -44,14 +42,12 @@ private:
     model::Game& game_;
     fs::path static_path_;
 
-    // Главный маршрутизатор
     template <typename Body, typename Allocator>
     ResponseVariant HandleRequest(const http::request<Body, http::basic_fields<Allocator>>& req) const {
         if (req.target().starts_with(Endpoints::API_PREFIX)) {
             return HandleApiRequest(req);
-        } else {
-            return HandleStaticRequest(req);
         }
+        return HandleStaticRequest(req);
     }
 
     template <typename Body, typename Allocator>
@@ -60,7 +56,6 @@ private:
     template <typename Body, typename Allocator>
     ResponseVariant HandleStaticRequest(const http::request<Body, http::basic_fields<Allocator>>& req) const;
 
-    // Помощник для создания текстовых ответов
     template <typename Body, typename Allocator>
     StringResponse MakeStringResponse(
         http::status status, const http::request<Body, http::basic_fields<Allocator>>& req,
@@ -81,12 +76,16 @@ private:
     json::array SerializeMaps() const;
     json::object SerializeMap(const model::Map& map) const;
     
+    // Новые функции для декомпозиции
+    json::array SerializeRoads(const model::Map& map) const;
+    json::array SerializeBuildings(const model::Map& map) const;
+    json::array SerializeOffices(const model::Map& map) const;
+    
     std::string GetMimeType(std::string_view extension) const;
     bool IsSubPath(fs::path path, fs::path base) const;
     std::string UrlDecode(std::string_view url) const;
 };
 
-// Реализации шаблонных методов должны быть в заголовочном файле
 template <typename Body, typename Allocator>
 ResponseVariant RequestHandler::HandleApiRequest(const http::request<Body, http::basic_fields<Allocator>>& req) const {
     if (req.method() != http::verb::get && req.method() != http::verb::head) {
@@ -122,13 +121,11 @@ ResponseVariant RequestHandler::HandleStaticRequest(const http::request<Body, ht
 
     std::string target = UrlDecode(req.target());
     if (target.empty() || target == "/") {
-        target = "/index.html"; // По умолчанию отдаем главную страницу
+        target = "/index.html"; 
     }
 
-    // Собираем абсолютный путь к файлу
     fs::path file_path = fs::weakly_canonical(static_path_ / target.substr(1));
 
-    // ЗАЩИТА: Проверяем, не пытается ли хакер выйти за пределы папки static (Directory Traversal)
     if (!IsSubPath(file_path, static_path_)) {
         return MakeStringResponse(http::status::bad_request, req, "Bad Request", "text/plain");
     }
@@ -142,18 +139,15 @@ ResponseVariant RequestHandler::HandleStaticRequest(const http::request<Body, ht
         return MakeStringResponse(http::status::internal_server_error, req, "Internal Server Error", "text/plain");
     }
 
-    // Сохраняем размер файла до того, как переместим его
     auto file_size = file.size();
-
     FileResponse res(std::piecewise_construct, std::make_tuple(std::move(file)), std::make_tuple(http::status::ok, req.version()));
     res.set(http::field::content_type, GetMimeType(file_path.extension().string()));
     res.keep_alive(req.keep_alive());
     
-    // Если это HEAD-запрос, отдаем только заголовки (без самого файла)
     if (req.method() == http::verb::head) {
         StringResponse empty_res(http::status::ok, req.version());
         empty_res.set(http::field::content_type, GetMimeType(file_path.extension().string()));
-        empty_res.content_length(file_size); // <-- Вот тут мы передаем сохраненный размер!
+        empty_res.content_length(file_size); 
         empty_res.keep_alive(req.keep_alive());
         return empty_res;
     }
