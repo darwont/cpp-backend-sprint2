@@ -1,3 +1,0 @@
-C:/Users/Pc1/Desktop/cpp-backend-template-practicum-november-main/sprint2/problems/command_line/solution/build/CMakeFiles/game_server.dir
-C:/Users/Pc1/Desktop/cpp-backend-template-practicum-november-main/sprint2/problems/command_line/solution/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/Pc1/Desktop/cpp-backend-template-practicum-november-main/sprint2/problems/command_line/solution/build/CMakeFiles/ZERO_CHECK.dir
