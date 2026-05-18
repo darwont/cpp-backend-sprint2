@@ -1,0 +1,10 @@
+^C:\USERS\PC1\DESKTOP\CPP-BACKEND-TEMPLATE-PRACTICUM-NOVEMBER-MAIN\SPRINT2\PROBLEMS\COMMAND_LINE\SOLUTION\CMAKELISTS.TXT
+setlocal
+"D:\Visual Studio\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/Pc1/Desktop/cpp-backend-template-practicum-november-main/sprint2/problems/command_line/solution -BC:/Users/Pc1/Desktop/cpp-backend-template-practicum-november-main/sprint2/problems/command_line/solution/build --check-stamp-file C:/Users/Pc1/Desktop/cpp-backend-template-practicum-november-main/sprint2/problems/command_line/solution/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
